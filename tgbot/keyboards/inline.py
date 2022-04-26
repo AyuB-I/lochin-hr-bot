@@ -21,3 +21,6 @@ professions_keyboard = InlineKeyboardMarkup(
     ]
 )
 
+fill_form_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[[InlineKeyboardButton("Anketani to'ldirish", callback_data="fill_form")]]
+)

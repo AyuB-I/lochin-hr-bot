@@ -17,7 +17,7 @@ form_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [
             KeyboardButton(u"\U00002B05 Orqaga"),
-            KeyboardButton(u"\U0000274C Bekor qilish")
+            KeyboardButton(u"\U00002716 Bekor qilish")
         ]
     ],
     resize_keyboard=True
@@ -30,7 +30,7 @@ phonenum_keyboard = ReplyKeyboardMarkup(
         ],
         [
             KeyboardButton(u"\U00002B05 Orqaga"),
-            KeyboardButton(u"\U0000274C Bekor qilish")
+            KeyboardButton(u"\U00002716 Bekor qilish")
         ]
     ],
     resize_keyboard=True
