@@ -18,9 +18,13 @@ professions_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton("Kadrlar bo'limi", callback_data="hr")],
         [InlineKeyboardButton("Buxgalteriya bo'limi", callback_data="accounting")],
         [InlineKeyboardButton("Marketing bo'limi", callback_data="marketing")],
+        [InlineKeyboardButton(u"\U00002B05 Orqaga", callback_data="back")]
     ]
 )
 
 fill_form_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[[InlineKeyboardButton("Anketani to'ldirish", callback_data="fill_form")]]
+    inline_keyboard=[
+        [InlineKeyboardButton("Anketani to'ldirish", callback_data="fill_form")],
+        [InlineKeyboardButton(u"\U00002B05 Orqaga", callback_data="back")]
+    ]
 )
