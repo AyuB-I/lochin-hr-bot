@@ -48,11 +48,11 @@ async def ask_q1(message: types.Message, state: FSMContext):
 async def ask_q2(message: types.Message, state: FSMContext):
     if message.text != "\U00002B05 Orqaga":
         chat_id = message.chat.id
-        await state.update_data(full_name=message.text.title())  # !!!Tutuq belgizidan keyingiz xarfni kottalashtiryapti
+        await state.update_data(full_name=message.text.title())  # !!!Tutuq belgisidan keyingi xarfni kottalashtiryapti
     elif message.text == "\U00002B05 Orqaga":
         await message.delete()
     await message.answer("<b>Tug'ulgan sanangizni kiriting.</b>\n(24.03.1998)", reply_markup=form_keyboard)
-    await FormStates.q2_birthdate.set()
+    await FormStates.q2_birthday.set()
 
 
 async def ask_q3(message: types.Message, state: FSMContext):
@@ -61,7 +61,7 @@ async def ask_q3(message: types.Message, state: FSMContext):
         await message.delete()
     await message.answer("<b>Siz bilan bog'lanishimiz mumkin bo'lgan telefon raqamni kiriting.</b>\n(+998916830071)",
                          reply_markup=phonenum_keyboard)
-    await state.update_data(birthdate=message.text)
+    await state.update_data(birthday=message.text)
     await FormStates.q3_phonenum.set()
 
 
@@ -80,7 +80,7 @@ async def confirm_q3(message: types.Message, state: FSMContext):
     if message.text and message.text != "\U00002B05 Orqaga":
         phonenum = message.text
     else:
-        phonenum = message.contact.phone_number
+        phonenum = "+" + message.contact.phone_number
     msg_1 = await message.answer(f"<b>Raqamni to'g'ri terdingizmi?</b>", reply_markup=cancel_form_button)
     msg_2 = await message.answer(phonenum, reply_markup=confirming_keyboard)
     await state.update_data(phonenum=phonenum, confirm_q3_id_1=msg_1.message_id, confirm_q3_id_2=msg_2.message_id)
@@ -379,9 +379,9 @@ async def ask_q11_message(message: types.Message, state: FSMContext):
 async def ask_q12(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_reply_markup()
     if call.data == "yes":
-        await state.update_data(criminal="Xa")
+        await state.update_data(criminal="Sudlangan")
     else:
-        await state.update_data(criminal="Yo'q")
+        await state.update_data(criminal="Sudlanmagan")
 
     async with state.proxy() as data:
         await call.message.edit_text(f"<b>Sudlanganmi:</b>\n{data.get('criminal')}")
@@ -645,7 +645,7 @@ async def ready_form(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         await message.bot.delete_message(chat_id, data.get("photo_mes_id"))
         form = f"<b>Ism va Familiya:</b> {data.get('full_name')}\n" \
-               f"<b>Tug'ulgan sana:</b> {data.get('birthdate')}\n" \
+               f"<b>Tug'ulgan sana:</b> {data.get('birthday')}\n" \
                f"<b>Telefon raqam:</b> {data.get('phonenum')}\n" \
                f"<b>Soha yo'nalishi:</b> {data.get('profession')}\n" \
                f"<b>Yashash manzil:</b> {data.get('address')}\n" \
@@ -680,6 +680,12 @@ async def finish_form(call: types.CallbackQuery, state: FSMContext):
         await call.message.answer("<b>Anketangiz muvaffaqiyatli jo'natildi!!!</b>\n"
                                   "24 soat ichida ko'rib chiqib siz bilan aloqaga chiqishadi.\n"
                                   "E'tiboringiz uchun raxmat!", reply_markup=menu_keyboard)
+        await db.add_form(data.get("full_name"), data.get("birthday"), data.get("phonenum"), data.get("profession"),
+                          data.get("address"), data.get("nation"), data.get("edu"), data.get("marital_status"),
+                          data.get("trip"), data.get("military"), data.get("criminal"), data.get("driver_license"),
+                          data.get("car"), data.get("ru_lang"), data.get("eng_lang"), data.get("chi_lang"),
+                          data.get("other_lang"), data.get("word_app"), data.get("excel_app"), data.get("onec_app"),
+                          data.get("other_app"), data.get("origin"), data.get("photo_id"))
         message = await call.bot.send_photo(chat_id=group_id, photo=data.get("photo_id"))
         form_text = data.get("form_text") + f"<b>Telegramdagi nomi:</b> @{data.get('username')}\n" \
                                             f"<b>Telegram ID:</b> {call.message.from_user.id}"
@@ -693,8 +699,8 @@ def register_user(dp: Dispatcher):
     dp.register_message_handler(about_us, text_contains="Korxona haqida")
     dp.register_message_handler(ask_q1, text_contains="Ro'yhatdan o'tish")
     dp.register_message_handler(ask_q2, regexp=("^[a-zA-Z']{3,}\s[a-zA-Z']{3,}$"), state=FormStates.q1_name)
-    dp.register_message_handler(ask_q1, text_contains="\U00002B05 Orqaga", state=FormStates.q2_birthdate)
-    dp.register_message_handler(ask_q3, state=FormStates.q2_birthdate, regexp=(
+    dp.register_message_handler(ask_q1, text_contains="\U00002B05 Orqaga", state=FormStates.q2_birthday)
+    dp.register_message_handler(ask_q3, state=FormStates.q2_birthday, regexp=(
         "\s?(?:0?[1-9]|[12][0-9]|3[01])[-\.](?:0?[1-9]|1[012])[-\.](?:19[6-9]\d|200[0-9])\.?$"))
     dp.register_message_handler(ask_q2, text_contains="\U00002B05 Orqaga", state=FormStates.q3_phonenum)
     dp.register_message_handler(confirm_q3, regexp=("\+998[0-9]{9}$"), state=FormStates.q3_phonenum)
