@@ -1,8 +1,8 @@
 from aiogram import Dispatcher
-from aiogram.types import Message
+from aiogram import types
 
 
-async def admin_start(message: Message):
+async def admin_start(message: types.Message):
     await message.reply("Hello, admin!")
 
 

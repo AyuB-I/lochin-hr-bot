@@ -11,6 +11,7 @@ from tgbot.handlers.admin import register_admin
 from tgbot.handlers.echo import register_echo
 from tgbot.handlers.user import register_user
 from tgbot.middlewares.db import DbMiddleware
+from tgbot.services.database import DBCommands
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +39,11 @@ async def main():
     logger.info("Starting bot")
     config = load_config(".env")
 
+    db = DBCommands("tgbot\db.db")
     storage = RedisStorage2() if config.tg_bot.use_redis else MemoryStorage()
     bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
     dp = Dispatcher(bot, storage=storage)
+    await db.create_table()
 
     bot['config'] = config
 
@@ -54,7 +57,9 @@ async def main():
     finally:
         await dp.storage.close()
         await dp.storage.wait_closed()
+        await db.close_db()
         await bot.session.close()
+
 
 
 if __name__ == '__main__':
