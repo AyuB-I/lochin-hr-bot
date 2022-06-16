@@ -123,10 +123,16 @@ class DBCommands:
         await connection.commit()
 
     async def get_all_forms(self):
-        """  Getting all forms from database  """
+        """  Getting all forms' ids and names from database and sending as a dict (id: name)  """
 
         connection = await self.get_connection()
         cursor = await connection.cursor()
 
-        query = await cursor.execute("SELECT * FROM forms")
-        return await query.fetchall()
+        await cursor.execute("SELECT id FROM forms")
+        ids = await cursor.fetchall()
+        id_list = [i[0] for i in ids]
+        await cursor.execute("SELECT full_name FROM forms")
+        names = await cursor.fetchall()
+        name_list = [n[0] for n in names]
+        data_dict = dict(zip(id_list, name_list))
+        return data_dict

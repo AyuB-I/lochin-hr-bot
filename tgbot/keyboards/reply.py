@@ -39,8 +39,8 @@ phonenum_keyboard = ReplyKeyboardMarkup(
 admin_menu = ReplyKeyboardMarkup(
     keyboard=[
         [
-            KeyboardButton("\U0001F4CB Anketalar Ro'yhati"),
-            KeyboardButton("\U0001F464 Foydalanuvchilar Ro'yhati"),
+            KeyboardButton("\U0001F4CB Anketalar"),
+            KeyboardButton("\U0001F464 Foydalanuvchilar"),
         ]
     ],
     resize_keyboard=True
