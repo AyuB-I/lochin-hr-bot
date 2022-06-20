@@ -89,3 +89,15 @@ sending_keyboard = InlineKeyboardMarkup(
         ]
     ]
 )
+
+admin_functions = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [
+            InlineKeyboardButton("\U0001F4CB Anketalar", callback_data="form_list"),
+            InlineKeyboardButton("\U0001F464 Foydalanuvchilar", callback_data="user_list")
+        ],
+        [
+            InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
+        ]
+    ]
+)

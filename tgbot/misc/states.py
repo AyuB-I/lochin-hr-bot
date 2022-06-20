@@ -2,7 +2,7 @@ from aiogram.dispatcher.filters.state import StatesGroup, State
 
 
 class AdminStates(StatesGroup):
-    menu = State()
+    admin_mode = State()
     forms = State()
     users = State()
 

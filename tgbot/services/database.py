@@ -108,7 +108,7 @@ class DBCommands:
                              driver_license, personal_car, ru_lang, eng_lang, chi_lang, other_lang, word_app, excel_app,
                              onec_app, other_app, origin, photo_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                             (current_user.id, current_user.username, full_name, birthday, phone_number, profession, address, nation,
+                             (current_user.id, f"@{current_user.username}", full_name, birthday, phone_number, profession, address, nation,
                               education, marital_status, business_trip, military, criminal, driver_license,
                               personal_car, ru_lang, eng_lang, chi_lang, other_lang, word_app, excel_app, onec_app,
                               other_app, origin, photo_id))
@@ -136,3 +136,20 @@ class DBCommands:
         name_list = [n[0] for n in names]
         data_dict = dict(zip(id_list, name_list))
         return data_dict
+
+    async def get_form(self, id):
+        """  Getting a form from id  """
+
+        connection = await self.get_connection()
+        cursor = await connection.cursor()
+
+        await cursor.execute("SELECT * FROM forms WHERE id = ?", (id,))
+        data = await cursor.fetchone()
+        form = {"id": data[0], "user_id": data[1], "username": data[2], "full_name": data[3], "birthday": data[4],
+                "phone_number": data[5], "profession": data[6], "address": data[7], "nation": data[8],
+                "education": data[9], "marital_status": data[10], "business_trip": data[11], "military": data[12],
+                "criminal": data[13], "driver_license": data[14], "personal_car": data[15], "ru_lang": data[16],
+                "eng_lang": data[17], "chi_lang": data[18], "other_lang": data[19], "word_app": data[20],
+                "excel_app": data[21], "onec_app": data[22], "other_app": data[23], "origin": data[24],
+                "photo_id": data[25], "date": data[26]}
+        return form

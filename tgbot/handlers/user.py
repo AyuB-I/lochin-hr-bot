@@ -5,10 +5,9 @@ from aiogram.utils.exceptions import MessageIdentifierNotSpecified, MessageToDel
 from tgbot.config import Config
 from tgbot.keyboards.inline import confirming_keyboard, professions_keyboard, fill_form_keyboard, nations_keyboard, \
     edu_keyboard, marital_status_keyboard, license_keyboard, level_keyboard, origin_keyboard, sending_keyboard
-from tgbot.keyboards.reply import menu_keyboard, cancel_form_button, form_keyboard, phonenum_keyboard
+from tgbot.keyboards.reply import user_menu, admin_menu, cancel_form_button, form_keyboard, phonenum_keyboard
 from tgbot.misc.states import FormStates
 from tgbot.services.database import DBCommands
-
 
 db = DBCommands("tgbot\db.db")
 
@@ -16,7 +15,7 @@ db = DBCommands("tgbot\db.db")
 async def user_start(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer("Assalamu Alaykum!\n\"Lochin Mould\" korxonasinig anketa to'ldirish botiga xush kelibsiz !!!",
-                         reply_markup=menu_keyboard)
+                         reply_markup=user_menu)
     await db.register_user()
 
 
@@ -34,7 +33,10 @@ async def incorrect_answer(message: types.Message):
 
 async def cancel_form(message: types.Message, state: FSMContext):
     await state.finish()
-    await message.answer("Ro'yhatdan o'tish bekor qilindi!", reply_markup=menu_keyboard)
+    config: Config = message.bot.get("config")
+    admin_ids = config.tg_bot.admin_ids
+    await message.answer("Ro'yhatdan o'tish bekor qilindi!", reply_markup=admin_menu if message.from_user.id
+                                                                                        in admin_ids else user_menu)
 
 
 async def ask_q1(message: types.Message, state: FSMContext):
@@ -668,7 +670,7 @@ async def ready_form(message: types.Message, state: FSMContext):
                f"<b>Biz haqimizda ma'lumot olgan manba:</b> {data.get('origin')}\n"
     await message.answer("<b>Sizning ma'lumotlaringiz:</b>")
     await message.answer(form, reply_markup=sending_keyboard)
-    await state.update_data(photo_id=photo_id, form_text=form, username=message.from_user.username)
+    await state.update_data(photo_id=photo_id, form_text=form)
     await FormStates.ready_form.set()
 
 
@@ -676,10 +678,12 @@ async def finish_form(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_reply_markup()
     config: Config = call.bot.get("config")
     group_id = config.tg_bot.group_ids[0]
+    admin_ids = config.tg_bot.admin_ids
     async with state.proxy() as data:
         await call.message.answer("<b>Anketangiz muvaffaqiyatli jo'natildi!!!</b>\n"
                                   "24 soat ichida ko'rib chiqib siz bilan aloqaga chiqishadi.\n"
-                                  "E'tiboringiz uchun raxmat!", reply_markup=menu_keyboard)
+                                  "E'tiboringiz uchun raxmat!", reply_markup=admin_menu if call.from_user.id
+                                                                                           in admin_ids else user_menu)
         await db.add_form(data.get("full_name"), data.get("birthday"), data.get("phonenum"), data.get("profession"),
                           data.get("address"), data.get("nation"), data.get("edu"), data.get("marital_status"),
                           data.get("trip"), data.get("military"), data.get("criminal"), data.get("driver_license"),
@@ -687,7 +691,7 @@ async def finish_form(call: types.CallbackQuery, state: FSMContext):
                           data.get("other_lang"), data.get("word_app"), data.get("excel_app"), data.get("onec_app"),
                           data.get("other_app"), data.get("origin"), data.get("photo_id"))
         message = await call.bot.send_photo(chat_id=group_id, photo=data.get("photo_id"))
-        form_text = data.get("form_text") + f"<b>Telegramdagi nomi:</b> @{data.get('username')}\n" \
+        form_text = data.get("form_text") + f"<b>Telegramdagi nomi:</b> @{call.from_user.username}\n" \
                                             f"<b>Telegram ID:</b> {call.message.from_user.id}"
         await call.bot.send_message(chat_id=group_id, text=form_text, reply_to_message_id=message.message_id)
     await state.finish()
