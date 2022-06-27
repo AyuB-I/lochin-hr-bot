@@ -108,10 +108,10 @@ class DBCommands:
                              driver_license, personal_car, ru_lang, eng_lang, chi_lang, other_lang, word_app, excel_app,
                              onec_app, other_app, origin, photo_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
                              ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                             (current_user.id, f"@{current_user.username}", full_name, birthday, phone_number, profession, address, nation,
-                              education, marital_status, business_trip, military, criminal, driver_license,
-                              personal_car, ru_lang, eng_lang, chi_lang, other_lang, word_app, excel_app, onec_app,
-                              other_app, origin, photo_id))
+                             (current_user.id, f"@{current_user.username}", full_name, birthday, phone_number,
+                              profession, address, nation, education, marital_status, business_trip, military, criminal,
+                              driver_license, personal_car, ru_lang, eng_lang, chi_lang, other_lang, word_app,
+                              excel_app, onec_app, other_app, origin, photo_id))
         query = await cursor.execute("""SELECT id FROM forms WHERE user_id IN (SELECT user_id FROM users 
                                      WHERE user_id = ?)""", (current_user.id,))
         row_list = list(itertools.chain.from_iterable(await query.fetchall()))
