@@ -1,3 +1,4 @@
+import asyncio
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.storage import FSMContext
 
@@ -13,7 +14,7 @@ db = DBCommands("tgbot\db.db")
 
 
 async def user_start(message: types.Message, state: FSMContext):
-    """  Greet the user when he sends command 'start'  """
+    """  Greet the user  """
     await state.finish()
     await message.answer("Assalamu Alaykum!\n\"Lochin Mould\" korxonasinig anketa to'ldirish botiga xush kelibsiz !!!",
                          reply_markup=user_menu)
@@ -27,30 +28,6 @@ async def about_us(message: types.Message):
                          "@Lochin_MouldBot")
 
 
-async def incorrect_answer(message: types.Message):
-    """  Show alert message when user inputs incorrect answer  """
-    await message.delete()
-    await message.answer("<b>Noto'g'ri ma'lumot kiritdingiz!</b>\n"
-                         "Iltimos, ma'lumotlarni ko'rsatilgan shakilda kiriting.")
-
-
-async def cancel_form(call: types.CallbackQuery, state: FSMContext):
-    """  Cancel form filling and back to home menu when user taps to 'home' button  """
-    config: Config = call.bot.get("config")
-    admin_ids = config.tg_bot.admin_ids
-    current_state = await state.get_state()
-    if current_state != "FormStates:q1_name" and current_state != "FormStates:ready_form":
-        async with state.proxy() as data:
-            await call.bot.delete_message(call.message.chat.id, data.get("question_message_id"))
-
-    async with state.proxy() as data:
-        await call.bot.delete_message(call.message.chat.id, data.get("form_message_id"))
-        await call.bot.delete_message(call.message.chat.id, data.get("anketa_text_message_id"))
-    await call.message.answer("Ro'yhatdan o'tish bekor qilindi!",
-                              reply_markup=admin_menu if call.from_user.id in admin_ids else user_menu)
-    await state.finish()
-
-
 async def ask_q1(message: types.Message, state: FSMContext):
     """  Start form filling and ask user's name  """
     anketa_text_message = await message.answer("Anketa:", reply_markup=types.ReplyKeyboardRemove())
@@ -62,13 +39,13 @@ async def ask_q1(message: types.Message, state: FSMContext):
 
 
 async def ask_q2(message: types.Message, state: FSMContext):
-    """  Ask the user's date of birth  """
+    """  Ask the user's birthday  """
     await message.delete()
-    full_name = message.text.title()  # Tutuq belgisidan keyingi xarfni kottalashtiryapti!!!
+    full_name = message.text
     form_text = f"<b>Ism va Familiya:</b> {full_name}\n"
     async with state.proxy() as data:
-        form_message_id = data.get("form_message_id")
-        await message.bot.edit_message_text(text=form_text, chat_id=message.chat.id, message_id=form_message_id)
+        await message.bot.edit_message_text(text=form_text, chat_id=message.chat.id,
+                                            message_id=data.get("form_message_id"))
         question_message = await message.answer("<b>Tug'ulgan sanangizni kiriting.</b>\n(24.03.1998)",
                                                 reply_markup=menu_control_keyboard)
         data.update(full_name=full_name, form_text=form_text, question_message_id=question_message.message_id)
@@ -91,10 +68,7 @@ async def ask_q3(message: types.Message, state: FSMContext):
 async def confirm_q3(message: types.Message, state: FSMContext):
     """  Ask user to confirm that the phone number was correct  """
     await message.delete()
-    if message.text:
-        phonenum = message.text
-    else:
-        phonenum = "+" + message.contact.phone_number
+    phonenum = message.text
     async with state.proxy() as data:
         await message.bot.edit_message_text(text=f"<b>Raqamni to'g'ri terdingizmi?</b>\n{phonenum}",
                                             chat_id=message.chat.id, message_id=data.get("question_message_id"),
@@ -104,12 +78,14 @@ async def confirm_q3(message: types.Message, state: FSMContext):
 
 async def callback_no(call: types.CallbackQuery):
     """  Ask again user's phone number if previous was incorrect  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     await call.message.edit_text(text="<b>Siz bilan bog'lanishimiz mumkin bo'lgan telefon raqamni kiriting.</b>\n"
                                       "(+998916830071)", reply_markup=menu_control_keyboard)
 
 
 async def ask_q4(call: types.CallbackQuery, state: FSMContext):
     """  Ask user for direction of profession  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>Telefon raqam:</b> {data.get('phonenum')}\n"
         await call.bot.edit_message_text(text=form_text, chat_id=call.message.chat.id,
@@ -121,6 +97,7 @@ async def ask_q4(call: types.CallbackQuery, state: FSMContext):
 
 async def show_sales_manager(call: types.CallbackQuery, state: FSMContext):
     """  Show the requirements of the chosen profession  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     await call.message.delete()
     question_message = await call.message.answer_photo(
         photo="AgACAgIAAxkBAAMpYrhbgtoqxAdBaHdumnLYniJ-bo8AAvu9MRs-rchJDnZ6Hb3Nh3kBAAMCAANzAAMpBA",
@@ -132,6 +109,7 @@ async def show_sales_manager(call: types.CallbackQuery, state: FSMContext):
 
 async def show_advertising(call: types.CallbackQuery, state: FSMContext):
     """  Show the requirements of the chosen profession  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     await call.message.delete()
     question_message = await call.message.answer_photo(
         photo="AgACAgIAAxkBAAMrYrhbifFoZ8BCIjFIbIsBSDGMiuwAAvy9MRs-rchJCInBDM2haNwBAAMCAANzAAMpBA",
@@ -143,6 +121,7 @@ async def show_advertising(call: types.CallbackQuery, state: FSMContext):
 
 async def show_finance(call: types.CallbackQuery, state: FSMContext):
     """  Show the requirements of the chosen profession  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     await call.message.delete()
     question_message = await call.message.answer_photo(
         photo="AgACAgIAAxkBAAMtYrhbjk2ePInGw8xpUkBb0FZIvFwAAv29MRs-rchJimKAScX7v9sBAAMCAANzAAMpBA",
@@ -154,6 +133,7 @@ async def show_finance(call: types.CallbackQuery, state: FSMContext):
 
 async def show_hr(call: types.CallbackQuery, state: FSMContext):
     """  Show the requirements of the chosen profession  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     await call.message.delete()
     question_message = await call.message.answer_photo(
         photo="AgACAgIAAxkBAAMvYrhbkAmk9p7HkulrFEdP8ZGZCoEAAv69MRs-rchJjbLDYUIPp5ABAAMCAANzAAMpBA",
@@ -165,6 +145,7 @@ async def show_hr(call: types.CallbackQuery, state: FSMContext):
 
 async def show_accounting(call: types.CallbackQuery, state: FSMContext):
     """  Show the requirements of the chosen profession  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     await call.message.delete()
     question_message = await call.message.answer_photo(
         photo="AgACAgIAAxkBAAMxYrhblHwWoOTbakxP0SsQIrASJtMAAv-9MRs-rchJlawTFod5eosBAAMCAANzAAMpBA",
@@ -176,6 +157,7 @@ async def show_accounting(call: types.CallbackQuery, state: FSMContext):
 
 async def show_marketing(call: types.CallbackQuery, state: FSMContext):
     """  Show the requirements of the chosen profession  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     await call.message.delete()
     question_message = await call.message.answer_photo(
         photo="AgACAgIAAxkBAAMzYrhbl0Q-adt61qhgOUTlrX3dgoEAA74xGz6tyEkwI1jttSW-UwEAAwIAA3MAAykE",
@@ -187,6 +169,7 @@ async def show_marketing(call: types.CallbackQuery, state: FSMContext):
 
 async def ask_q5(call: types.CallbackQuery, state: FSMContext):
     """  Ask user's address  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>Soha yo'nalishi:</b> {data.get('profession')}\n"
         await call.bot.edit_message_text(text=form_text, chat_id=call.message.chat.id,
@@ -212,6 +195,7 @@ async def ask_q6(message: types.Message, state: FSMContext):
 
 async def ask_q7(call: types.CallbackQuery, state: FSMContext):
     """  Ask user's academic degree  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     nation = None
     if call.data == "uz":
         nation = "O'zbek"
@@ -230,6 +214,7 @@ async def ask_q7(call: types.CallbackQuery, state: FSMContext):
 
 async def ask_q8(call: types.CallbackQuery, state: FSMContext):
     """  Ask user's marital status  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     edu = None
     if call.data == "secondary":
         edu = "O'rta"
@@ -250,6 +235,7 @@ async def ask_q8(call: types.CallbackQuery, state: FSMContext):
 
 async def ask_q9(call: types.CallbackQuery, state: FSMContext):
     """  Ask user's agreement for going on business trips  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     marital_status = None
     if call.data == "married":
         marital_status = "Turmush qurgan"
@@ -283,6 +269,7 @@ async def ask_q10(call: types.CallbackQuery, state: FSMContext):
 
 async def ask_q11(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user is he a convict  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     military = None
     if call.data == "yes":
         military = "Borgan"
@@ -299,6 +286,7 @@ async def ask_q11(call: types.CallbackQuery, state: FSMContext):
 
 async def ask_q12(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user does he have a driver license  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     criminal = None
     if call.data == "yes":
         criminal = "Sudlangan"
@@ -315,6 +303,7 @@ async def ask_q12(call: types.CallbackQuery, state: FSMContext):
 
 async def ask_q13(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user does he have a personal car  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     driver_license = None
     if call.data == "b":
         driver_license = "B"
@@ -336,6 +325,7 @@ async def ask_q13(call: types.CallbackQuery, state: FSMContext):
 
 async def ask_q14(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user how well he knows Russian  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     car = None
     if call.data == "yes":
         car = "Bor"
@@ -352,33 +342,36 @@ async def ask_q14(call: types.CallbackQuery, state: FSMContext):
 
 async def ask_q15(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user how well he knows English  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>Rus tili:</b> {call.data}%\n"
         await call.bot.edit_message_text(text=form_text, chat_id=call.message.chat.id,
                                          message_id=data.get("form_message_id"))
-        await call.message.edit_text("<b>Ingliz tilida suxbatlashish darajasi:</b>", reply_markup=level_keyboard)
+        await call.message.edit_text("<b>Ingliz tilida suxbatlashish darajangiz:</b>", reply_markup=level_keyboard)
         data.update(form_text=form_text, ru_lang=call.data)
     await FormStates.q15_eng_lang.set()
 
 
 async def ask_q16(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user how well he knows Chinese  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>Ingiliz tili:</b> {call.data}%\n"
         await call.bot.edit_message_text(text=form_text, chat_id=call.message.chat.id,
                                          message_id=data.get("form_message_id"))
-        await call.message.edit_text("<b>Xitoy tilida suxbatlashish darajasi:</b>", reply_markup=level_keyboard)
+        await call.message.edit_text("<b>Xitoy tilida suxbatlashish darajangiz:</b>", reply_markup=level_keyboard)
         data.update(form_text=form_text, eng_lang=call.data)
     await FormStates.q16_chi_lang.set()
 
 
 async def ask_q17(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user which other languages he knows  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>Xitoy tili:</b> {call.data}%\n"
         await call.bot.edit_message_text(text=form_text, chat_id=call.message.chat.id,
                                          message_id=data.get("form_message_id"))
-        question_message = await call.message.edit_text("<b>Boshqa qanday tilni bilasiz?</b>\n(Turk 75%)",
+        question_message = await call.message.edit_text("<b>Boshqa qanday tillarni bilasiz?</b>\n(Turk 75%)",
                                                         reply_markup=menu_control_keyboard)
         data.update(form_text=form_text, chi_lang=call.data, question_message_id=question_message.message_id)
     await FormStates.q17_other_lang.set()
@@ -399,28 +392,31 @@ async def ask_q18(message: types.Message, state: FSMContext):
 
 async def ask_q19(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user how well he knows application 'excel'  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>Word dasturi:</b> {call.data}%\n"
         await call.message.bot.edit_message_text(text=form_text, chat_id=call.message.chat.id,
                                                  message_id=data.get("form_message_id"))
-        await call.message.edit_text("<b>Ecxel dasturini bilishingiz darajsi:</b>", reply_markup=level_keyboard)
+        await call.message.edit_text("<b>Ecxel dasturini bilishingiz darajasi:</b>", reply_markup=level_keyboard)
         data.update(form_text=form_text, word_app=call.data)
     await FormStates.q19_excel_app.set()
 
 
 async def ask_q20(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user how well he knows application '1c'  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>Excel dasturi:</b> {call.data}%\n"
         await call.message.bot.edit_message_text(text=form_text, chat_id=call.message.chat.id,
                                                  message_id=data.get("form_message_id"))
-        await call.message.edit_text("<b>1C dasturini bilishingiz darajsi:</b>", reply_markup=level_keyboard)
+        await call.message.edit_text("<b>1C dasturini bilishingiz darajasi:</b>", reply_markup=level_keyboard)
         data.update(form_text=form_text, excel_app=call.data)
     await FormStates.q20_1c_app.set()
 
 
 async def ask_q21(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user which other applications he knows  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>1C dasturi:</b> {call.data}%\n"
         await call.message.bot.edit_message_text(text=form_text, chat_id=call.message.chat.id,
@@ -447,6 +443,7 @@ async def ask_q22(message: types.Message, state: FSMContext):
 
 async def ask_q23(call: types.CallbackQuery, state: FSMContext):
     """  Ask the user to send his photo  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     origin = "Tanish-Bilish" if call.data == "acquainted" else call.data.capitalize()
     async with state.proxy() as data:
         form_text = data.get("form_text") + f"<b>Biz haqimizda ma'lumot olgan manba:</b> {origin}\n"
@@ -476,6 +473,7 @@ async def ready_form(message: types.Message, state: FSMContext):
 
 async def finish_form(call: types.CallbackQuery, state: FSMContext):
     """  Finish form filing and send the form to admin's group  """
+    await call.answer(cache_time=30)  # It's a simple anti-flood
     await call.message.edit_reply_markup()
     config: Config = call.bot.get("config")
     group_id = config.tg_bot.group_ids[0]
@@ -483,8 +481,9 @@ async def finish_form(call: types.CallbackQuery, state: FSMContext):
     async with state.proxy() as data:
         await call.message.answer("<b>Anketangiz muvaffaqiyatli jo'natildi!!!</b>\n"
                                   "24 soat ichida ko'rib chiqib siz bilan aloqaga chiqamiz.\n"
-                                  "E'tiboringiz uchun raxmat!", reply_markup=admin_menu if call.from_user.id
-                                                                                           in admin_ids else user_menu)
+                                  "E'tiboringiz uchun raxmat!",
+                                  reply_markup=admin_menu if call.from_user.id in admin_ids else user_menu)
+        # Adding to database
         await db.add_form(data.get("full_name"), data.get("birthday"), data.get("phonenum"), data.get("profession"),
                           data.get("address"), data.get("nation"), data.get("edu"), data.get("marital_status"),
                           data.get("trip"), data.get("military"), data.get("criminal"), data.get("driver_license"),
@@ -498,12 +497,30 @@ async def finish_form(call: types.CallbackQuery, state: FSMContext):
         await state.finish()
 
 
+async def incorrect_answer(message: types.Message):
+    """  Show alert message when user inputs incorrect answer  """
+    await message.delete()
+    alert = await message.answer("<b>Noto'g'ri ma'lumot kiritdingiz!</b>\n"
+                                 "Iltimos, ma'lumotlarni ko'rsatilgan shakilda kiriting.")
+    await asyncio.sleep(5)
+    await message.bot.delete_message(chat_id=message.chat.id, message_id=alert.message_id)
+
+
+async def non_functional_messages(message: types.Message):
+    """  Show alert message when user sends any non-functional messages  """
+    await message.delete()
+    alert = await message.answer("<b>Menyudagi funktsiyalardan foydalanishingiz mumkin!</b>\n\n"
+                                 "<i>Botning ishlash jarayonida xatolikka duch kelsangiz /start'ni bosish orqali "
+                                 "botni qayta ishga tushiring.</i>")
+    await asyncio.sleep(30)
+    await message.bot.delete_message(chat_id=message.chat.id, message_id=alert.message_id)
+
+
 def register_user(dp: Dispatcher):
     dp.register_message_handler(user_start, commands=["start"], state="*")
     dp.register_message_handler(about_us, text_contains="Korxona haqida")
     dp.register_message_handler(ask_q1, text_contains="Ro'yhatdan o'tish")
-    dp.register_callback_query_handler(cancel_form, text_contains="home", state=FormStates)
-    dp.register_message_handler(ask_q2, regexp=("^[a-zA-Z']{3,}\s[a-zA-Z']{3,}$"), state=FormStates.q1_name)
+    dp.register_message_handler(ask_q2, content_types=types.ContentType.TEXT, state=FormStates.q1_name)
     dp.register_message_handler(ask_q3, state=FormStates.q2_birthday, regexp=(
         "\s?(?:0?[1-9]|[12][0-9]|3[01])[-\.](?:0?[1-9]|1[012])[-\.](?:19[6-9]\d|200[0-9])\.?$"))
     dp.register_message_handler(confirm_q3, regexp=("\+998[0-9]{9}$"), state=FormStates.q3_phonenum)
@@ -518,7 +535,7 @@ def register_user(dp: Dispatcher):
     dp.register_callback_query_handler(show_accounting, text_contains="accounting", state=FormStates.q4_profession)
     dp.register_callback_query_handler(show_marketing, text_contains="marketing", state=FormStates.q4_profession)
     dp.register_callback_query_handler(ask_q5, text_contains="fill_form", state=FormStates.starting_next_form)
-    dp.register_message_handler(ask_q6, content_types=types.ContentTypes.TEXT, state=FormStates.q5_address)
+    dp.register_message_handler(ask_q6, content_types=types.ContentType.TEXT, state=FormStates.q5_address)
     dp.register_callback_query_handler(ask_q7, state=FormStates.q6_nation)
     dp.register_callback_query_handler(ask_q8, state=FormStates.q7_edu)
     dp.register_callback_query_handler(ask_q9, state=FormStates.q8_marital_status)
@@ -538,3 +555,5 @@ def register_user(dp: Dispatcher):
     dp.register_callback_query_handler(ask_q23, state=FormStates.q22_origin)
     dp.register_message_handler(ready_form, content_types=types.ContentType.PHOTO, state=FormStates.q23_photo)
     dp.register_callback_query_handler(finish_form, text_contains="send", state=FormStates.ready_form)
+    dp.register_message_handler(incorrect_answer, state=FormStates, content_types=types.ContentType.ANY)
+    dp.register_message_handler(non_functional_messages, state="*", content_types=types.ContentType.ANY)

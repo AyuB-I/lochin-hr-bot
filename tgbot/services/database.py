@@ -11,14 +11,12 @@ class DBCommands:
 
     async def get_connection(self):
         """  Getting connection to database or creating if not exists  """
-
         if self.connection is None:
             self.connection = await aiosqlite.connect(self.filename)
         return self.connection
 
     async def close_db(self):
         """  Closing connection to database  """
-
         if self.connection is not None:
             await self.connection.close()
             self.connection = None
@@ -26,7 +24,6 @@ class DBCommands:
 
     async def create_table(self):
         """  Creating database tables with names 'users', 'form'  """
-
         connection = await self.get_connection()
         cursor = await connection.cursor()
 
@@ -71,7 +68,6 @@ class DBCommands:
 
     async def get_user(self, user_id):
         """  Getting user by id from database  """
-
         connection = await self.get_connection()
         cursor = await connection.cursor()
         await cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
@@ -80,7 +76,6 @@ class DBCommands:
 
     async def register_user(self):
         """  Registration user in database  """
-
         connection = await self.get_connection()
         cursor = await connection.cursor()
         current_user = types.User.get_current()
@@ -98,7 +93,6 @@ class DBCommands:
                        business_trip, military, criminal, driver_license, personal_car, ru_lang, eng_lang, chi_lang,
                        other_lang, word_app, excel_app, onec_app, other_app, origin, photo_id):
         """  Adding a new form to database  """
-
         connection = await self.get_connection()
         cursor = await connection.cursor()
         current_user = types.User.get_current()
@@ -116,15 +110,12 @@ class DBCommands:
                                      WHERE user_id = ?)""", (current_user.id,))
         row_list = list(itertools.chain.from_iterable(await query.fetchall()))
         form_id = row_list[-1]
-        logging.info(row_list)
-        logging.info(form_id)
 
         await cursor.execute("UPDATE users SET forms = json_insert(forms, '$[#]', ?)", (form_id,))
         await connection.commit()
 
     async def get_all_forms(self):
         """  Getting all forms' ids and names from database and sending as a dict (id: name)  """
-
         connection = await self.get_connection()
         cursor = await connection.cursor()
 
@@ -137,13 +128,12 @@ class DBCommands:
         data_dict = dict(zip(id_list, name_list))
         return data_dict
 
-    async def get_form(self, id):
+    async def get_form(self, form_id):
         """  Getting a form from id  """
-
         connection = await self.get_connection()
         cursor = await connection.cursor()
 
-        await cursor.execute("SELECT * FROM forms WHERE id = ?", (id,))
+        await cursor.execute("SELECT * FROM forms WHERE id = ?", (form_id,))
         data = await cursor.fetchone()
         form = {"id": data[0], "user_id": data[1], "username": data[2], "full_name": data[3], "birthday": data[4],
                 "phone_number": data[5], "profession": data[6], "address": data[7], "nation": data[8],
@@ -153,3 +143,74 @@ class DBCommands:
                 "excel_app": data[21], "onec_app": data[22], "other_app": data[23], "origin": data[24],
                 "photo_id": data[25], "date": data[26]}
         return form
+
+    async def get_stats(self):
+        """  Get statistics of users and forms, exactly, count of users and forms in periods:
+         today, last week, last month, last half year, last year, all time  """
+        connection = await self.get_connection()
+        cursor = await connection.cursor()
+
+        # Fetching count of all users
+        await cursor.execute("SELECT COUNT(user_id) FROM users")
+        users_all_time = (await cursor.fetchone())[0]
+
+        # Fetching count of users that registered last 24 hours
+        await cursor.execute("""SELECT COUNT(user_id) FROM users 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(users.registration_date)) * 24 AS INTEGER) <= 24""")
+        users_one_day = (await cursor.fetchone())[0]
+
+        # Fetching count of users that registered last one week
+        await cursor.execute("""SELECT COUNT(user_id) FROM users 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(users.registration_date)) AS INTEGER) <= 7""")
+        users_one_week = (await cursor.fetchone())[0]
+
+        # Fetching count of users that registered last one month
+        await cursor.execute("""SELECT COUNT(user_id) FROM users 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(users.registration_date)) AS INTEGER) <= 30""")
+        users_one_month = (await cursor.fetchone())[0]
+
+        # Fetching count of users that registered last half year
+        await cursor.execute("""SELECT COUNT(user_id) FROM users 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(users.registration_date)) AS INTEGER) <= 183""")
+        users_half_year = (await cursor.fetchone())[0]
+
+        # Fetching count of users that registered last one year
+        await cursor.execute("""SELECT COUNT(user_id) FROM users 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(users.registration_date)) AS INTEGER) <= 365""")
+        users_one_year = (await cursor.fetchone())[0]
+
+        # Fetching count of all forms
+        await cursor.execute("SELECT COUNT(id) FROM forms")
+        forms_all_time = (await cursor.fetchone())[0]
+
+        # Fetching count of forms that registered last 24 hours
+        await cursor.execute("""SELECT COUNT(id) FROM forms 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(forms.date)) * 24 AS INTEGER) <= 24""")
+        forms_one_day = (await cursor.fetchone())[0]
+
+        # Fetching count of forms that registered last one week
+        await cursor.execute("""SELECT COUNT(id) FROM forms 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(forms.date)) AS INTEGER) <= 7""")
+        forms_one_week = (await cursor.fetchone())[0]
+
+        # Fetching count of forms that registered last one month
+        await cursor.execute("""SELECT COUNT(id) FROM forms 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(forms.date)) AS INTEGER) <= 30""")
+        forms_one_month = (await cursor.fetchone())[0]
+
+        # Fetching count of forms that registered last half year
+        await cursor.execute("""SELECT COUNT(id) FROM forms 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(forms.date)) AS INTEGER) <= 183""")
+        forms_half_year = (await cursor.fetchone())[0]
+
+        # Fetching count of forms that registered last one year
+        await cursor.execute("""SELECT COUNT(id) FROM forms 
+        WHERE CAST((JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(forms.date)) AS INTEGER) <= 365""")
+        forms_one_year = (await cursor.fetchone())[0]
+
+        stats = {"users_one_day": users_one_day, "users_one_week": users_one_week, "users_one_month": users_one_month,
+                 "users_half_year": users_half_year, "users_one_year": users_one_year, "users_all_time": users_all_time,
+                 "forms_one_day": forms_one_day, "forms_one_week": forms_one_week, "forms_one_month": forms_one_month,
+                 "forms_half_year": forms_half_year, "forms_one_year": forms_one_year, "forms_all_time": forms_all_time}
+
+        return stats
