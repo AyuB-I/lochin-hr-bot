@@ -114,19 +114,67 @@ class DBCommands:
         await cursor.execute("UPDATE users SET forms = json_insert(forms, '$[#]', ?)", (form_id,))
         await connection.commit()
 
-    async def get_all_forms(self):
+    async def get_forms(self, begin=0, end=None, key=None):
         """  Getting all forms' ids and names from database and sending as a dict (id: name)  """
         connection = await self.get_connection()
         cursor = await connection.cursor()
 
-        await cursor.execute("SELECT id FROM forms")
-        ids = await cursor.fetchall()
-        id_list = [i[0] for i in ids]
-        await cursor.execute("SELECT full_name FROM forms")
-        names = await cursor.fetchall()
-        name_list = [n[0] for n in names]
-        data_dict = dict(zip(id_list, name_list))
-        return data_dict
+        # Fetching 16 rows of data in descending order from the top of the table
+        if begin == 0 and key is None:
+            await cursor.execute("SELECT id, full_name FROM forms ORDER BY id DESC LIMIT 5")
+            row_list = await cursor.fetchall()
+            await cursor.execute("SELECT id FROM forms")
+            first_row_id = (await cursor.fetchone())[0]  # ID of the first row in database
+            await cursor.execute("SELECT id FROM forms ORDER BY id DESC")
+            last_row_id = (await cursor.fetchone())[0]  # ID of the last row in database
+            forms_dict = {}
+            for k, v in row_list:
+                forms_dict[k] = v
+            return [forms_dict, first_row_id, last_row_id]
+
+        # Fetching 16 rows of data in descending order if the id of the row is less than given 'begin' argument
+        elif key == "next":
+            if begin < 6:
+                begin = 6
+            await cursor.execute("SELECT id, full_name FROM forms WHERE id < ? ORDER BY id DESC LIMIT 5", (begin,))
+            row_list = await cursor.fetchall()
+            await cursor.execute("SELECT id FROM forms")
+            first_row_id = (await cursor.fetchone())[0]  # ID of the first row in database
+            await cursor.execute("SELECT id FROM forms ORDER BY id DESC")
+            last_row_id = (await cursor.fetchone())[0]  # ID of the last row in database
+            forms_dict = {}
+            for k, v in row_list:
+                forms_dict[k] = v
+            return [forms_dict, first_row_id, last_row_id]
+
+        # Fetching 16 rows of data in descending order if the id of the row is greater than given 'begin' argument
+        elif key == "previous":
+            if begin > 6:
+                begin = 6
+            await cursor.execute("SELECT id, full_name FROM forms WHERE id > ? ORDER BY id DESC LIMIT 5", (begin,))
+            row_list = await cursor.fetchall()
+            await cursor.execute("SELECT id FROM forms")
+            first_row_id = (await cursor.fetchone())[0]  # ID of the first row in database
+            await cursor.execute("SELECT id FROM forms ORDER BY id DESC")
+            last_row_id = (await cursor.fetchone())[0]  # ID of the last row in database
+            forms_dict = {}
+            for k, v in row_list:
+                forms_dict[k] = v
+            return [forms_dict, first_row_id, last_row_id]
+
+        # Fetching rows between given arguments 'begin' and 'end'
+        elif end is not None:
+            await cursor.execute("SELECT id, full_name FROM forms WHERE id >= ? and id <= ? ORDER BY id DESC LIMIT 5",
+                                 (begin, end))
+            row_list = await cursor.fetchall()
+            await cursor.execute("SELECT id FROM forms")
+            first_row_id = (await cursor.fetchone())[0]  # ID of the first row in database
+            await cursor.execute("SELECT id FROM forms ORDER BY id DESC")
+            last_row_id = (await cursor.fetchone())[0]  # ID of the last row in database
+            forms_dict = {}
+            for k, v in row_list:
+                forms_dict[k] = v
+            return [forms_dict, first_row_id, last_row_id]
 
     async def get_form(self, form_id):
         """  Getting a form from id  """
