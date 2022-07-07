@@ -26,16 +26,3 @@ user_menu = ReplyKeyboardMarkup(
     ],
     resize_keyboard=True
 )
-
-phonenum_keyboard = ReplyKeyboardMarkup(
-    keyboard=[
-        [
-            KeyboardButton("\U0001f4de Raqamimni jo'natish", request_contact=True)
-        ],
-        [
-            KeyboardButton("\U00002B05 Orqaga"),
-            KeyboardButton("\U00002716 Bekor qilish")
-        ]
-    ],
-    resize_keyboard=True
-)

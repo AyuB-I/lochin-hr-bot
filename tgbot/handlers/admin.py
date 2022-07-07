@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.storage import FSMContext
 
@@ -28,16 +26,20 @@ async def show_admin_functions(message: types.Message, state: FSMContext):
 async def send_form_list(call: types.CallbackQuery, state: FSMContext):
     """  Send a list of form ids and names of its owners to admin
     with inline keyboard of each form id from db  """
-    await call.answer(cache_time=3)  # Simple anti-flood
+    await call.answer(cache_time=1)  # Simple anti-flood
     await state.finish()
+
+    # Getting forms from database
     db_data = await db.get_forms()
-    logging.info(db_data)
     forms_dict = db_data[0]
     first_row_id = db_data[1]  # ID of the first row in database
+    last_row_id = db_data[2]  # ID of the last row in database
     smallest_id_dict = (list(forms_dict.keys()))[-1]  # The smallest ID in dictionary which are 16 rows of database
     biggest_id_dict = (list(forms_dict.keys()))[0]  # The biggest ID in dictionary which are 16 rows of database
+
+    # Creating a form list with inline keyboard
     text = ""
-    inline_keyboard = types.InlineKeyboardMarkup(row_width=5)
+    inline_keyboard = types.InlineKeyboardMarkup(row_width=8)
     for key in forms_dict:
         text += f"{key}. {forms_dict[key]}\n"
         button = types.InlineKeyboardButton(text=key, callback_data=key)
@@ -50,61 +52,78 @@ async def send_form_list(call: types.CallbackQuery, state: FSMContext):
     stats_button = types.InlineKeyboardButton(text="\U0001F4C8 Statistika", callback_data="stats")
     home_button = types.InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
     inline_keyboard.add(stats_button, home_button)
+
+    # Editing existing message of form list to a new form list and updating data in state
     functions_message = await call.message.edit_text(text, reply_markup=inline_keyboard)
     await state.update_data(sent_forms=[], smallest_id_dict=smallest_id_dict, biggest_id_dict=biggest_id_dict,
-                            functions_message_id=functions_message.message_id)
+                            functions_message_id=functions_message.message_id, first_row_id=first_row_id,
+                            last_row_id=last_row_id)
     await AdminStates.forms.set()
 
 
 async def send_next_form_list(call: types.CallbackQuery, state: FSMContext):
-    """  Send a list of form ids and names of its owners to admin
-    with inline keyboard of each form id from db  """
-    await call.answer(cache_time=1)  # Simple anti-flood
+    """  Send the next list of forms  """
+    # Getting data from database
     async with state.proxy() as data:
-        db_data = await db.get_forms(begin=data.get("smallest_id_dict"), key="next")
-    logging.info(db_data)
-    forms_dict = db_data[0]
-    first_row_id = db_data[1]  # ID of the first row in database
-    last_row_id = db_data[2]  # ID of the last row in database
-    smallest_id_dict = (list(forms_dict.keys()))[-1]  # The smallest ID in dictionary which are 16 rows of database
-    biggest_id_dict = (list(forms_dict.keys()))[0]  # The biggest ID in dictionary which are 16 rows of database
+        first_row_id = data.get("first_row_id")
+        begin = data.get("smallest_id_dict") - 16
+        end = begin + 50
+        if begin < first_row_id:
+            begin = first_row_id
+    db_data = await db.get_forms(begin, end)
+    # Getting form list from data in dict type and ordering it in Descending order
+    forms_dict = sorted(db_data[0].items(), key=lambda x: x[0], reverse=True)
+    forms_dict = {items[0]: items[1] for items in forms_dict}
+    smallest_id_dict = (list(forms_dict.keys()))[-1]
+    biggest_id_dict = (list(forms_dict.keys()))[0]
+
+    # Creating a form list with inline keyboard
     text = ""
-    inline_keyboard = types.InlineKeyboardMarkup(row_width=5)
+    inline_keyboard = types.InlineKeyboardMarkup(row_width=8)
     for key in forms_dict:
         text += f"{key}. {forms_dict[key]}\n"
         button = types.InlineKeyboardButton(text=key, callback_data=key)
         inline_keyboard.insert(button)
 
-    if not biggest_id_dict == last_row_id:
+    if smallest_id_dict == first_row_id:
         previous_button = types.InlineKeyboardButton(text="\U000023EE", callback_data="previous")
         inline_keyboard.add(previous_button)
 
-    if not smallest_id_dict == first_row_id:
+    else:
+        previous_button = types.InlineKeyboardButton(text="\U000023EE", callback_data="previous")
         next_button = types.InlineKeyboardButton(text="\U000023ED", callback_data="next")
-        inline_keyboard.insert(next_button)
+        inline_keyboard.add(previous_button, next_button)
 
     stats_button = types.InlineKeyboardButton(text="\U0001F4C8 Statistika", callback_data="stats")
     home_button = types.InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
     inline_keyboard.add(stats_button, home_button)
+
+    # Editing existing message of form list to a new form list and updating data in state
     functions_message = await call.message.edit_text(text, reply_markup=inline_keyboard)
-    await state.update_data(sent_forms=[], smallest_id_dict=smallest_id_dict, biggest_id_dict=biggest_id_dict,
+    await state.update_data(smallest_id_dict=smallest_id_dict, biggest_id_dict=biggest_id_dict,
                             functions_message_id=functions_message.message_id)
 
 
 async def send_previous_form_list(call: types.CallbackQuery, state: FSMContext):
-    """  Send a list of form ids and names of its owners to admin
-    with inline keyboard of each form id from db  """
-    await call.answer(cache_time=1)  # Simple anti-flood
+    """  Send the previous list of forms  """
+    # Getting forms from database
     async with state.proxy() as data:
-        db_data = await db.get_forms(begin=data.get("biggest_id_dict"), key="previous")
-    logging.info(db_data)
-    forms_dict = db_data[0]
-    first_row_id = db_data[1]  # ID of the first row in database
-    last_row_id = db_data[2]  # ID of the last row in database
-    smallest_id_dict = (list(forms_dict.keys()))[-1]  # The smallest ID in dictionary which are 16 rows of database
-    biggest_id_dict = (list(forms_dict.keys()))[0]  # The biggest ID in dictionary which are 16 rows of database
+        last_row_id = data.get("last_row_id")
+        begin = data.get("biggest_id_dict") + 1
+        end = begin + 15
+        if end > last_row_id:
+            end = last_row_id
+            begin = end - 4
+    db_data = await db.get_forms(begin, end)
+    # Getting form list from data in dict type and ordering it in Descending order
+    forms_dict = sorted(db_data[0].items(), key=lambda x: x[0], reverse=True)
+    forms_dict = {items[0]: items[1] for items in forms_dict}
+    smallest_id_dict = (list(forms_dict.keys()))[-1]
+    biggest_id_dict = (list(forms_dict.keys()))[0]
+
+    # Creating a form list with inline keyboard
     text = ""
-    inline_keyboard = types.InlineKeyboardMarkup(row_width=5)
+    inline_keyboard = types.InlineKeyboardMarkup(row_width=8)
     for key in forms_dict:
         text += f"{key}. {forms_dict[key]}\n"
         button = types.InlineKeyboardButton(text=key, callback_data=key)
@@ -122,14 +141,18 @@ async def send_previous_form_list(call: types.CallbackQuery, state: FSMContext):
     stats_button = types.InlineKeyboardButton(text="\U0001F4C8 Statistika", callback_data="stats")
     home_button = types.InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
     inline_keyboard.add(stats_button, home_button)
+
+    # Editing existing message of form list to a new form list and updating data in state
     functions_message = await call.message.edit_text(text, reply_markup=inline_keyboard)
-    await state.update_data(sent_forms=[], smallest_id_dict=smallest_id_dict, biggest_id_dict=biggest_id_dict,
+    await state.update_data(smallest_id_dict=smallest_id_dict, biggest_id_dict=biggest_id_dict,
                             functions_message_id=functions_message.message_id)
 
 
 async def send_form(call: types.CallbackQuery, state: FSMContext):
     """  Send a form which admin chose  """
-    await call.answer(cache_time=30)  # Simple anti-flood
+    await call.answer(cache_time=5)  # Simple anti-flood
+
+    # Making form's text
     form = await db.get_form(call.data)
     form_text = f"<b>Anketa ID:</b> {form['id']}\n" \
                 f"<b>Ism va Familiya:</b> {form['full_name']}\n" \
@@ -158,45 +181,55 @@ async def send_form(call: types.CallbackQuery, state: FSMContext):
                 f"<b>Telegram ID:</b> {form['user_id']}\n" \
                 f"<b>Jo'natilgan sana:</b> {form['date']}\n"
 
+    # Getting forms from database
     async with state.proxy() as data:
         smallest_id_dict = data.get("smallest_id_dict")
         biggest_id_dict = data.get("biggest_id_dict")
     db_data = await db.get_forms(begin=smallest_id_dict, end=biggest_id_dict)
-    logging.info(db_data)
-    forms_dict = db_data[0]
+    # Getting form list from data in dict type and ordering it in Descending order
+    forms_dict = sorted(db_data[0].items(), key=lambda x: x[0], reverse=True)
+    forms_dict = {items[0]: items[1] for items in forms_dict}
     first_row_id = db_data[1]  # ID of the first row in database
     last_row_id = db_data[2]  # ID of the last row in database
+
+    # Creating a form list with inline keyboard
     text = ""
-    inline_keyboard = types.InlineKeyboardMarkup(row_width=5)
+    inline_keyboard = types.InlineKeyboardMarkup(row_width=8)
     for key in forms_dict:
         text += f"{key}. {forms_dict[key]}\n"
         button = types.InlineKeyboardButton(text=key, callback_data=key)
         inline_keyboard.insert(button)
-    if not smallest_id_dict == first_row_id:
+
+    if smallest_id_dict == first_row_id and biggest_id_dict != last_row_id:
+        previous_button = types.InlineKeyboardButton(text="\U000023EE", callback_data="previous")
+        inline_keyboard.add(previous_button)
+
+    elif biggest_id_dict == last_row_id and smallest_id_dict != first_row_id:
         next_button = types.InlineKeyboardButton(text="\U000023ED", callback_data="next")
         inline_keyboard.add(next_button)
 
-    if not biggest_id_dict == last_row_id:
+    elif smallest_id_dict != first_row_id and biggest_id_dict != last_row_id:
         previous_button = types.InlineKeyboardButton(text="\U000023EE", callback_data="previous")
-        inline_keyboard.insert(previous_button)
+        next_button = types.InlineKeyboardButton(text="\U000023ED", callback_data="next")
+        inline_keyboard.add(previous_button, next_button)
 
     stats_button = types.InlineKeyboardButton(text="\U0001F4C8 Statistika", callback_data="stats")
     home_button = types.InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
     inline_keyboard.add(stats_button, home_button)
 
+    # Sending form with inline keyboard
     await call.message.delete()
     form_message = await call.message.answer_photo(photo=form["photo_id"], caption=form_text)
     functions_message = await call.message.answer(text, reply_markup=inline_keyboard)
     async with state.proxy() as data:
         sent_forms = data.get("sent_forms")
         sent_forms.append(form_message.message_id)
-        data.update(sent_forms=sent_forms, smallest_id_dict=smallest_id_dict, biggest_id_dict=biggest_id_dict,
-                    functions_message_id=functions_message.message_id)
+        data.update(sent_forms=sent_forms, functions_message_id=functions_message.message_id)
 
 
 async def send_stats(call: types.CallbackQuery, state: FSMContext):
     """  Send statistics of users and forms received from database using function 'get_stats'  """
-    await call.answer(cache_time=3)  # Simple anti-flood
+    await call.answer(cache_time=1)  # Simple anti-flood
     current_state = await state.get_state()
     async with state.proxy() as data:
         if current_state == "AdminStates:forms":
@@ -230,7 +263,7 @@ async def send_stats(call: types.CallbackQuery, state: FSMContext):
 
 async def go_home(call: types.CallbackQuery, state: FSMContext):
     """  Handle the 'home' button and return to main menu  """
-    await call.answer(cache_time=30)  # Simple anti-flood
+    await call.answer(cache_time=1)  # Simple anti-flood
     current_state = await state.get_state()
     async with state.proxy() as data:
         if current_state == "AdminStates:forms":

@@ -7,10 +7,6 @@ class AdminStates(StatesGroup):
     stats = State()
 
 
-class UserStates(StatesGroup):
-    pass
-
-
 class FormStates(StatesGroup):
     q1_name = State()
     q2_birthday = State()
