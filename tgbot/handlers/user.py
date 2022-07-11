@@ -3,7 +3,7 @@ from aiogram import types, Dispatcher
 from aiogram.dispatcher.storage import FSMContext
 
 from tgbot.config import Config
-from tgbot.keyboards.inline import cancel_keyboard, menu_control_keyboard, phonenum_confirming_keyboard, \
+from tgbot.keyboards.inline import cancel_keyboard, menu_control_keyboard, only_confirming_keyboard, \
     professions_keyboard, fill_form_keyboard, nations_keyboard, edu_keyboard, marital_status_keyboard, \
     confirming_keyboard, license_keyboard, level_keyboard, origin_keyboard, sending_keyboard
 from tgbot.keyboards.reply import user_menu, admin_menu
@@ -72,7 +72,7 @@ async def confirm_q3(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         await message.bot.edit_message_text(text=f"<b>Raqamni to'g'ri terdingizmi?</b>\n{phonenum}",
                                             chat_id=message.chat.id, message_id=data.get("question_message_id"),
-                                            reply_markup=phonenum_confirming_keyboard)
+                                            reply_markup=only_confirming_keyboard)
         data.update(phonenum=phonenum)
 
 

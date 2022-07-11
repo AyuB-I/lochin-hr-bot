@@ -66,8 +66,17 @@ class DBCommands:
                     )""")
         await connection.commit()
 
+    async def get_all_users(self):
+        """  Get all user's telegram id  """
+        connection = await self.get_connection()
+        cursor = await connection.cursor()
+
+        await cursor.execute("SELECT user_id FROM users")
+        user_ids = await cursor.fetchall()
+        return user_ids
+
     async def get_user(self, user_id):
-        """  Getting user by id from database  """
+        """  Get user by his telegram id from database  """
         connection = await self.get_connection()
         cursor = await connection.cursor()
         await cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
@@ -75,11 +84,12 @@ class DBCommands:
         return result
 
     async def register_user(self):
-        """  Registration user in database  """
+        """  Register user in database  """
         connection = await self.get_connection()
         cursor = await connection.cursor()
         current_user = types.User.get_current()
         user = await self.get_user(current_user.id)
+
         if user:  # Checking if the user has already registered
             return user
 
@@ -92,7 +102,7 @@ class DBCommands:
     async def add_form(self, full_name, birthday, phone_number, profession, address, nation, education, marital_status,
                        business_trip, military, criminal, driver_license, personal_car, ru_lang, eng_lang, chi_lang,
                        other_lang, word_app, excel_app, onec_app, other_app, origin, photo_id):
-        """  Adding a new form to database  """
+        """  Add a new form to database  """
         connection = await self.get_connection()
         cursor = await connection.cursor()
         current_user = types.User.get_current()
@@ -115,7 +125,7 @@ class DBCommands:
         await connection.commit()
 
     async def get_forms(self, begin=0, end=0):
-        """  Getting all forms' ids and names from database and sending as a dict (id: name)  """
+        """  Get all forms' ids and names from database and sending as a dict (id: name)  """
         connection = await self.get_connection()
         cursor = await connection.cursor()
 
@@ -147,7 +157,7 @@ class DBCommands:
             return [forms_dict, first_row_id, last_row_id]
 
     async def get_form(self, form_id):
-        """  Getting a form from id  """
+        """  Get a form from its id  """
         connection = await self.get_connection()
         cursor = await connection.cursor()
 

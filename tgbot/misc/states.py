@@ -5,6 +5,8 @@ class AdminStates(StatesGroup):
     admin_mode = State()
     forms = State()
     stats = State()
+    mailing_start = State()
+    mailing_confirm = State()
 
 
 class FormStates(StatesGroup):

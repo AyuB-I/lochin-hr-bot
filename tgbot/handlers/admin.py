@@ -1,7 +1,10 @@
+import logging
+
 from aiogram import types, Dispatcher
 from aiogram.dispatcher.storage import FSMContext
 
-from tgbot.keyboards.inline import admin_functions, admin_function_form_list
+from tgbot.keyboards.inline import admin_functions, admin_functions_state_mailing, admin_functions_state_stats, \
+    only_confirming_keyboard
 from tgbot.keyboards.reply import admin_menu
 from tgbot.misc.states import AdminStates
 from tgbot.services.database import DBCommands
@@ -50,8 +53,10 @@ async def send_form_list(call: types.CallbackQuery, state: FSMContext):
         inline_keyboard.add(next_button)
 
     stats_button = types.InlineKeyboardButton(text="\U0001F4C8 Statistika", callback_data="stats")
+    mailing_button = types.InlineKeyboardButton(text="\U00002709 E'lon berish", callback_data="mailing")
     home_button = types.InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
-    inline_keyboard.add(stats_button, home_button)
+    inline_keyboard.add(stats_button, mailing_button)
+    inline_keyboard.add(home_button)
 
     # Editing existing message of form list to a new form list and updating data in state
     functions_message = await call.message.edit_text(text, reply_markup=inline_keyboard)
@@ -95,8 +100,10 @@ async def send_next_form_list(call: types.CallbackQuery, state: FSMContext):
         inline_keyboard.add(previous_button, next_button)
 
     stats_button = types.InlineKeyboardButton(text="\U0001F4C8 Statistika", callback_data="stats")
+    mailing_button = types.InlineKeyboardButton(text="\U00002709 E'lon berish", callback_data="mailing")
     home_button = types.InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
-    inline_keyboard.add(stats_button, home_button)
+    inline_keyboard.add(stats_button, mailing_button)
+    inline_keyboard.add(home_button)
 
     # Editing existing message of form list to a new form list and updating data in state
     functions_message = await call.message.edit_text(text, reply_markup=inline_keyboard)
@@ -110,10 +117,10 @@ async def send_previous_form_list(call: types.CallbackQuery, state: FSMContext):
     async with state.proxy() as data:
         last_row_id = data.get("last_row_id")
         begin = data.get("biggest_id_dict") + 1
-        end = begin + 15
+        end = begin + 16
         if end > last_row_id:
             end = last_row_id
-            begin = end - 4
+            begin = end - 16
     db_data = await db.get_forms(begin, end)
     # Getting form list from data in dict type and ordering it in Descending order
     forms_dict = sorted(db_data[0].items(), key=lambda x: x[0], reverse=True)
@@ -139,8 +146,10 @@ async def send_previous_form_list(call: types.CallbackQuery, state: FSMContext):
         inline_keyboard.add(previous_button, next_button)
 
     stats_button = types.InlineKeyboardButton(text="\U0001F4C8 Statistika", callback_data="stats")
+    mailing_button = types.InlineKeyboardButton(text="\U00002709 E'lon berish", callback_data="mailing")
     home_button = types.InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
-    inline_keyboard.add(stats_button, home_button)
+    inline_keyboard.add(stats_button, mailing_button)
+    inline_keyboard.add(home_button)
 
     # Editing existing message of form list to a new form list and updating data in state
     functions_message = await call.message.edit_text(text, reply_markup=inline_keyboard)
@@ -214,8 +223,10 @@ async def send_form(call: types.CallbackQuery, state: FSMContext):
         inline_keyboard.add(previous_button, next_button)
 
     stats_button = types.InlineKeyboardButton(text="\U0001F4C8 Statistika", callback_data="stats")
+    mailing_button = types.InlineKeyboardButton(text="\U00002709 E'lon berish", callback_data="mailing")
     home_button = types.InlineKeyboardButton(text="\U0001F3E0", callback_data="home")
-    inline_keyboard.add(stats_button, home_button)
+    inline_keyboard.add(stats_button, mailing_button)
+    inline_keyboard.add(home_button)
 
     # Sending form with inline keyboard
     await call.message.delete()
@@ -239,6 +250,7 @@ async def send_stats(call: types.CallbackQuery, state: FSMContext):
             await state.finish()
 
     stats = await db.get_stats()
+    # Do not remove the whitespaces!!!
     functions_message = await call.bot.edit_message_text(text=f"""<b>Statistika:</b>\n
     <b><i>Anketalar:</i></b>\n
     <i>Oxirgi bir kun:</i>      <code>{stats['forms_one_day']}</code>
@@ -256,13 +268,72 @@ async def send_stats(call: types.CallbackQuery, state: FSMContext):
     <u><i>Umumiy:</i></u>              <code>{stats['users_all_time']}</code>""",
                                                          chat_id=call.message.chat.id,
                                                          message_id=data.get("functions_message_id"),
-                                                         reply_markup=admin_function_form_list)
+                                                         reply_markup=admin_functions_state_stats)
     await state.update_data(functions_message_id=functions_message.message_id)
     await AdminStates.stats.set()
 
 
+async def mailing_start(call: types.CallbackQuery, state: FSMContext):
+    """  Start mailing to users. Ask the admin to write the mail text  """
+    await call.answer(cache_time=1)  # Simple anti-flood
+    current_state = await state.get_state()
+    async with state.proxy() as data:
+        if current_state == "AdminStates:forms":
+            sent_forms = data.get('sent_forms')
+            for form_id in sent_forms:
+                await call.bot.delete_message(chat_id=call.message.chat.id, message_id=form_id)
+        await call.bot.edit_message_text(text="<b>Jo'natmoqchi bo'lgan xabaringizni yozing!</b>\n",
+                                         chat_id=call.message.chat.id, message_id=data.get("functions_message_id"),
+                                         reply_markup=admin_functions_state_mailing)
+    await AdminStates.mailing_start.set()
+
+
+async def mailing_confirm(message: types.Message, state: FSMContext):
+    """  Ask the admin to confirm the mailing  """
+    text = message.text
+    await message.delete()
+    async with state.proxy() as data:
+        await message.bot.edit_message_text(text=f"<b>Ushbu xabarni barchaga jo'natishga rozimisiz?</b>\n{text}",
+                                            chat_id=message.chat.id, message_id=data.get("functions_message_id"),
+                                            reply_markup=only_confirming_keyboard)
+    await state.update_data(mailing_text=text)
+    await AdminStates.mailing_confirm.set()
+
+
+async def callback_no(call: types.CallbackQuery, state: FSMContext):
+    """  Return to admin mode  """
+    await call.answer(cache_time=1)  # Simple anti-flood
+    await state.finish()
+    functions_message = await call.message.edit_text("Mavjud funcktsiyalar:", reply_markup=admin_functions)
+    await AdminStates.admin_mode.set()
+    await state.update_data(functions_message_id=functions_message.message_id)
+
+
+async def send_mail(call: types.CallbackQuery, state: FSMContext):
+    """  Send the mail to all users in database  """
+    try:
+        user_ids = await db.get_all_users()
+        data = await state.get_data()
+        text = data.get("mailing_text")
+        for user_id in user_ids:
+            if user_id[0] == call.message.chat.id:
+                continue
+            await call.bot.send_message(chat_id=user_id[0], text=text)
+    except Exception as error:
+        await call.answer(f"Xato! Dasturchiga murojat qiling!\n{error}", show_alert=True)
+        await call.message.edit_text("Mavjud funktsiyalar:", reply_markup=admin_functions)
+        await AdminStates.admin_mode.set()
+    else:
+        await call.message.edit_reply_markup()
+        functions_message = await call.message.answer("E'lon muvaffaqiyatli jo'natildi! \U0001F389",
+                                                      reply_markup=admin_functions)
+        await state.finish()
+        await state.update_data(functions_message_id=functions_message.message_id)
+        await AdminStates.admin_mode.set()
+
+
 async def go_home(call: types.CallbackQuery, state: FSMContext):
-    """  Handle the 'home' button and return to main menu  """
+    """  Return to main menu  """
     await call.answer(cache_time=1)  # Simple anti-flood
     current_state = await state.get_state()
     async with state.proxy() as data:
@@ -284,3 +355,7 @@ def register_admin(dp: Dispatcher):
     dp.register_callback_query_handler(send_previous_form_list, text_contains="previous", state=AdminStates.forms)
     dp.register_callback_query_handler(send_form, regexp="^\d+$", state=AdminStates.forms)
     dp.register_callback_query_handler(send_stats, text_contains="stats", state=AdminStates)
+    dp.register_callback_query_handler(mailing_start, text_contains="mailing", state=AdminStates)
+    dp.register_message_handler(mailing_confirm, state=AdminStates.mailing_start)
+    dp.register_callback_query_handler(callback_no, text_contains="no", state=AdminStates.mailing_confirm)
+    dp.register_callback_query_handler(send_mail, text_contains="yes", state=AdminStates.mailing_confirm)
