@@ -83,8 +83,8 @@ class DBCommands:
         result = await cursor.fetchone()
         return result
 
-    async def register_user(self):
-        """  Register user in database  """
+    async def add_user(self):
+        """  Add new user to database  """
         connection = await self.get_connection()
         cursor = await connection.cursor()
         current_user = types.User.get_current()
@@ -116,12 +116,6 @@ class DBCommands:
                               profession, address, nation, education, marital_status, business_trip, military, criminal,
                               driver_license, personal_car, ru_lang, eng_lang, chi_lang, other_lang, word_app,
                               excel_app, onec_app, other_app, origin, photo_id))
-        query = await cursor.execute("""SELECT id FROM forms WHERE user_id IN (SELECT user_id FROM users 
-                                     WHERE user_id = ?)""", (current_user.id,))
-        row_list = list(itertools.chain.from_iterable(await query.fetchall()))
-        form_id = row_list[-1]
-
-        await cursor.execute("UPDATE users SET forms = json_insert(forms, '$[#]', ?)", (form_id,))
         await connection.commit()
 
     async def get_forms(self, begin=0, end=0):
@@ -131,20 +125,23 @@ class DBCommands:
 
         # Fetching 16 rows of data in descending order from the top of the table
         if begin == 0 and end == 0:
-            await cursor.execute("SELECT id, full_name FROM forms ORDER BY id DESC LIMIT 16")
-            row_list = await cursor.fetchall()
-            await cursor.execute("SELECT id FROM forms")
-            first_row_id = (await cursor.fetchone())[0]  # ID of the first row in database
-            await cursor.execute("SELECT id FROM forms ORDER BY id DESC")
-            last_row_id = (await cursor.fetchone())[0]  # ID of the last row in database
-            forms_dict = {}
-            for k, v in row_list:
-                forms_dict[k] = v
-            return [forms_dict, first_row_id, last_row_id]
+            try:
+                await cursor.execute("SELECT id, full_name FROM forms ORDER BY id DESC LIMIT 10")
+                row_list = await cursor.fetchall()
+                await cursor.execute("SELECT id FROM forms")
+                first_row_id = (await cursor.fetchone())[0]  # ID of the first row in database
+                await cursor.execute("SELECT id FROM forms ORDER BY id DESC")
+                last_row_id = (await cursor.fetchone())[0]  # ID of the last row in database
+                forms_dict = {}
+                for k, v in row_list:
+                    forms_dict[k] = v
+                return [forms_dict, first_row_id, last_row_id]
+            except TypeError:
+                return None
 
         # Fetching rows between given arguments 'begin' and 'end'
         else:
-            await cursor.execute("SELECT id, full_name FROM forms WHERE id >= ? and id <= ? LIMIT 16",
+            await cursor.execute("SELECT id, full_name FROM forms WHERE id >= ? and id <= ? LIMIT 10",
                                  (begin, end))
             row_list = await cursor.fetchall()
             await cursor.execute("SELECT id FROM forms")

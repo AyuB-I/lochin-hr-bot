@@ -11,6 +11,7 @@ from tgbot.handlers.admin import register_admin
 from tgbot.handlers.navigation import register_navigation
 from tgbot.handlers.user import register_user
 from tgbot.services.database import DBCommands
+from tgbot.misc.default_commands import setup_default_commands
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,8 @@ async def main():
     logger.info("Starting bot")
     config = load_config(".env")
 
-    db = DBCommands("tgbot\db.db")
-    storage = RedisStorage2() if config.tg_bot.use_redis else MemoryStorage()
+    db = DBCommands("tgbot/db.db")
+    storage = RedisStorage2(host="redis") if config.tg_bot.use_redis else MemoryStorage()
     bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
     dp = Dispatcher(bot, storage=storage)
     await db.create_table()
@@ -56,6 +57,7 @@ async def main():
 
     # start
     try:
+        await setup_default_commands(dp)
         await dp.start_polling()
     finally:
         await dp.storage.close()
